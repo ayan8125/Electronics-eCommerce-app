@@ -4,15 +4,22 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copy root package.json + lock file
-COPY ../package.json ../package-lock.json ./
+# Copy root package.json to the container
+COPY package.json package-lock.json ./
 
-# Install root dependencies (if needed)
-RUN npm install --frozen-lockfile
+# Install root-level dependencies
+RUN npm install
 
-# Copy frontend source
-COPY . .
+# Copy ONLY frontend source
+COPY frontend ./frontend
 
+# Move into frontend directory
+WORKDIR /app/frontend
+
+# Install frontend-specific dependencies
+RUN npm install
+
+# Build Next.js app
 RUN npm run build
 
 # ------------------------
@@ -24,10 +31,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
+# Copy build output
+COPY --from=builder /app/frontend/.next ./.next
+COPY --from=builder /app/frontend/public ./public
+COPY --from=builder /app/frontend/package.json ./
+COPY --from=builder /app/frontend/node_modules ./node_modules
 
 EXPOSE 3000
 CMD ["npm", "start"]
